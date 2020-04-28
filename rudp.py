@@ -9,7 +9,7 @@ import hashlib
 class packet:
     
     # checksum=0;
-    
+    checker = True
     # make packets in from byte data, and seqnum ->convert to sequence number
     @staticmethod
     def make_packet(sequence_num,data=b''):
@@ -22,17 +22,10 @@ class packet:
     @staticmethod
     def extract_packet(packet_fromfile):
         sequence_num=int.from_bytes(packet_fromfile[0:4],byteorder='little',signed=True)
-        checksum_received = packet_fromfile[4:20]
+        #checksum_received = packet_fromfile[4:20]
         data_received = packet_fromfile[20:]
-        checksum_created = hashlib.md5(data_received).digest()
-        checker = True
-        if(checksum_received==checksum_created):
-            print("MD5 checksum verified")
-        else:
-            print("Packet is corrupted")
-            checker = False
-
-        return (sequence_num, data_received, checker)
+        
+        return (sequence_num, data_received)
         
     
     
@@ -140,8 +133,16 @@ class reliable_layer :
             
             while( next_to_send < base + window_size):
                 unreliable_channel.send_pckt(packets_list[next_to_send],sock,RECEIVER_ADDRESS)
-                next_to_send+=1
-                print('packet sent with number-: ',next_to_send-1,'\n')
+                checksum = packets_list[next_to_send][4:20]
+                data = packets_list[next_to_send][20:]
+                checksum_created = hashlib.md5(data).digest()
+                if(checksum_created!=checksum):
+                    # packet corrupted, hence sending all packets again from the base
+                    next_to_send = Base
+                    print("Packet corrupt, sending from base",base," again\n")
+                else:
+                    next_to_send+=1
+                    print('packet sent with number-: ',next_to_send-1,'\n')
                 
             
             #start running timer,packet has been sent
@@ -158,7 +159,6 @@ class reliable_layer :
                 #enough sleep,start again
                 lock.acquire()
                 
-            
             if send_timer.timeout():
                 # all packets not send in current slot
                 send_timer.stop_timer()
