@@ -24,11 +24,11 @@ while True:
             break
        
        
-        recieved_seqnum,data=rudp.packet.extract_packet(packet)
+        recieved_seqnum,data,checker=rudp.packet.extract_packet(packet)
         
     
         
-        if(expectednum==recieved_seqnum):
+        if(expectednum==recieved_seqnum and checker == True):
             #send ack
             print("packet with seqnum received- ", recieved_seqnum)
             ack=rudp.packet.make_packet(recieved_seqnum)

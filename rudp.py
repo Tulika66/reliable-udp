@@ -25,11 +25,14 @@ class packet:
         checksum_received = packet_fromfile[4:20]
         data_received = packet_fromfile[20:]
         checksum_created = hashlib.md5(data_received).digest()
+        checker = True
         if(checksum_received==checksum_created):
             print("MD5 checksum verified")
         else:
             print("Packet is corrupted")
-        return sequence_num, data_received
+            checker = False
+
+        return (sequence_num, data_received, checker)
         
     
     
