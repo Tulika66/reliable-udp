@@ -2,6 +2,7 @@ import random
 import socket
 import time
 import _thread
+import hashlib
 
 
 
@@ -13,14 +14,22 @@ class packet:
     @staticmethod
     def make_packet(sequence_num,data=b''):
         sequence_bytes=sequence_num.to_bytes(4,byteorder='little',signed=True)
-        return sequence_bytes + data
+        checksum = hashlib.md5(data).digest()
+        return sequence_bytes + checksum + data
     
     
     
     @staticmethod
     def extract_packet(packet_fromfile):
         sequence_num=int.from_bytes(packet_fromfile[0:4],byteorder='little',signed=True)
-        return sequence_num,packet_fromfile[4:]
+        checksum_received = packet_fromfile[4:20]
+        data_received = packet_fromfile[20:]
+        checksum_created = hashlib.md5(data_received).digest()
+        if(checksum_received==checksum_created):
+            print("MD5 checksum verified")
+        else:
+            print("Packet is corrupted")
+        return sequence_num, data_received
         
     
     
