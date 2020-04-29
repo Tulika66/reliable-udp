@@ -49,7 +49,12 @@ class unreliable_channel :
     
     @staticmethod
     def recv_pckt(sock):
-        packet , addr=sock.recvfrom(1024)
+        packet = b''
+        addr = b''
+        try:
+            packet , addr=sock.recvfrom(1024)
+        except:
+            print("the end")
         return packet , addr
         
         
@@ -115,23 +120,23 @@ class reliable_layer :
         global Base 
         global lock
         global send_timer
-        
+
         
         total_packets= len(packets_list)
         window_size= reliable_layer.give_window_size(total_packets)
         print(' window size = ', window_size)       
-        
         seq_no=0
         next_to_send=0
-        base=0
+        #base=0
         
         _thread.start_new_thread(reliable_layer.receive,(sock,))
         
-        
-        while Base < total_packets:
+        while next_to_send < total_packets:
             lock.acquire()
             
-            while( next_to_send < base + window_size):
+            while( next_to_send < Base + window_size):
+                if next_to_send >= total_packets:
+                    break
                 unreliable_channel.send_pckt(packets_list[next_to_send],sock,RECEIVER_ADDRESS)
                 checksum = packets_list[next_to_send][4:20]
                 data = packets_list[next_to_send][20:]
@@ -139,11 +144,13 @@ class reliable_layer :
                 if(checksum_created!=checksum):
                     # packet corrupted, hence sending all packets again from the base
                     next_to_send = Base
-                    print("Packet corrupt, sending from base",base," again\n")
+                    print("Packet corrupt, sending from base",Base," again\n")
                 else:
                     next_to_send+=1
                     print('packet sent with number-: ',next_to_send-1,'\n')
                 
+            if next_to_send >= total_packets:
+                break
             
             #start running timer,packet has been sent
             if not send_timer.running():
@@ -166,7 +173,7 @@ class reliable_layer :
                 print('timeout\n')
             
             else :
-                #all pckets send in current window,succesfully
+                #all packets send in current window,succesfully
                 window_size=reliable_layer.give_window_size(total_packets)
                 print('shifting window\n')
             lock.release()
@@ -187,13 +194,13 @@ class reliable_layer :
         while True:
             
             packet_, addr= unreliable_channel.recv_pckt(sock)
-            ack ,__= packet.extract(packet_)
+            ack ,__= packet.extract_packet(packet_)
             
             print("received ack - ",ack)
             
             if(ack >= Base):
                 lock.acquire()
-                base=ack+1
+                Base=ack+1
                 print('base updated')
                 send_timer.stop_timer()
                 lock.release()
