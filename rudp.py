@@ -23,7 +23,7 @@ class packet:
     def extract_packet(packet_fromfile):
         sequence_num=int.from_bytes(packet_fromfile[0:4],byteorder='little',signed=True)
         #checksum_received = packet_fromfile[4:20]
-        data_received = packet_fromfile[20:]
+        data_received = packet_fromfile[4:]
         
         return (sequence_num, data_received)
         
@@ -53,8 +53,8 @@ class unreliable_channel :
         addr = b''
         try:
             packet , addr=sock.recvfrom(1024)
-        except:
-            print("the end")
+        except Exception as e:
+            print("")
         return packet , addr
         
         
@@ -124,33 +124,28 @@ class reliable_layer :
         
         total_packets= len(packets_list)
         window_size= reliable_layer.give_window_size(total_packets)
-        print(' window size = ', window_size)       
+        print(' window size = ', window_size)   
         seq_no=0
         next_to_send=0
         #base=0
         
         _thread.start_new_thread(reliable_layer.receive,(sock,))
         
-        while next_to_send < total_packets:
+        while Base <= total_packets:
             lock.acquire()
             
-            while( next_to_send < Base + window_size):
-                if next_to_send >= total_packets:
+            while( next_to_send < Base + window_size and Base < total_packets and next_to_send < total_packets):
+                if next_to_send == total_packets-1 and Base == total_packets-1:
                     break
-                unreliable_channel.send_pckt(packets_list[next_to_send],sock,RECEIVER_ADDRESS)
-                checksum = packets_list[next_to_send][4:20]
-                data = packets_list[next_to_send][20:]
-                checksum_created = hashlib.md5(data).digest()
-                if(checksum_created!=checksum):
-                    # packet corrupted, hence sending all packets again from the base
-                    next_to_send = Base
-                    print("Packet corrupt, sending from base",Base," again\n")
-                else:
-                    next_to_send+=1
-                    print('packet sent with number-: ',next_to_send-1,'\n')
                 
-            if next_to_send >= total_packets:
+                unreliable_channel.send_pckt(packets_list[next_to_send],sock,RECEIVER_ADDRESS)
+                next_to_send+=1
+                print('packet sent with number-: ',next_to_send-1,'\n')
+                
+            if next_to_send == total_packets-1 and Base == total_packets-1:
                 break
+            if next_to_send >= total_packets:
+                next_to_send = Base-1
             
             #start running timer,packet has been sent
             if not send_timer.running():
@@ -169,7 +164,7 @@ class reliable_layer :
             if send_timer.timeout():
                 # all packets not send in current slot
                 send_timer.stop_timer()
-                next_to_send=Base
+                next_to_send=Base-1
                 print('timeout\n')
             
             else :
@@ -200,12 +195,11 @@ class reliable_layer :
             
             if(ack >= Base):
                 lock.acquire()
-                Base=ack+1
+                Base=ack
                 print('base updated')
                 send_timer.stop_timer()
                 lock.release()
-               
-                        
+
          
         
         

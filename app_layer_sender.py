@@ -28,6 +28,8 @@ while True:
           
 total_packets=len(packets)
 rudp.reliable_layer.send(sock,packets)
+time.sleep(5) #waiting for all threads to be over
+print("\nDone")
 sock.close()
     
         

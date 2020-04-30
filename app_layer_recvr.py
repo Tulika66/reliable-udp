@@ -1,6 +1,7 @@
 import rudp
 import socket
 import sys
+import hashlib
 
 
 RECEIVER_ADDRESS= ('localhost',8080)
@@ -14,7 +15,6 @@ file = open(filename,'wb')
 
 
 
-
 expectednum=0
     
 while True:
@@ -24,11 +24,13 @@ while True:
             break
        
        
-        recieved_seqnum,data=rudp.packet.extract_packet(packet)
+        recieved_seqnum,data_received=rudp.packet.extract_packet(packet)
         
-    
-        
-        if(expectednum==recieved_seqnum):
+        checksum = data_received[0:16]
+        data = data_received[16:]
+        checksum_created = hashlib.md5(data).digest()
+                
+        if(expectednum==recieved_seqnum and checksum==checksum_created):
             #send ack
             print("packet with seqnum received- ", recieved_seqnum)
             ack=rudp.packet.make_packet(recieved_seqnum)
@@ -44,6 +46,7 @@ while True:
 file.close()
 
 sock.close()
+print("Done")
     
             
            
